@@ -1,0 +1,24 @@
+I've only been coding for two years, and have only been coding in JavaScript for four months. And already, I feel like jaded old man, sitting on my pourch yelling at kids to fuck off with their shiny new frameworks, libraries, and languages. Many of them seem to spring out of existence and die faster than anyone has a chance to learn them. Even popular stalwarts like Angular 1.x are slated to go extinct after a mere five years of existence. 
+
+As an employed developer, my time for messing around with new technologies is extremely limited, usually confined to a few hours on the weekends. And as a neurotic employed developer, I'm consistently terrified of spending my time learning the wrong thing. Sure, I try to spend time learning boning up on the fundamentals, strengthening my knowledge-trunk with the CS I missed out on as an economics undergrad. But in my free time, I'm generally more excited to flex my creative muscles by building something. I'm an interactive learner, and thankfully Javascipt is a great language making cool shit quickly. 
+
+Point being: when it comes to picking a shiny new technology for my weekend side projects, I'd like to be damn-certain that it will be worth my time investment, as well as fun. And with ECMAScript 6 slated to come out this summer, it seems like the obvious choice. Not only does it add a a sweet, sweet layer of syntactic sugar, cool features, and other niceties to an already extensive language, but I can rest assured that it will still be relevent in five years. 
+
+====
+classes
+http://www.2ality.com/2015/02/es6-classes-final.html
+
+"going from prototypical objects to classes is trivial; the other way is much more difficult."
+
+classes just syntactic sugar over the already existing prototype-based objects
+
+Coming from a Ruby/Python background, a lot of this is familiar; but there's some new stuff
+  constructor: similar to def __init__ or initialize; like in the prototype model, it is the first thing ran when calling new.
+  extends: typical class inherticence symantics
+  super: refers to parent constructor method. so super(x,y) calls parent's instantiation. super.methodName calls parent's method.
+  no more Object.prototype.methodName = function() {}, etc. Now, just name the methods. ES6 knows what you're talkin' bout. 
+  static: class methods
+    everything else is a prototype method
+  bracket syntax: class Stuff {constructor(){this.x = 5} ['xyz' + this.x]() { /* method name === 'xyz5' */}
+
+gotchas: class definitions are not hoisted.
