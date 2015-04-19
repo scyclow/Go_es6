@@ -4,6 +4,16 @@ As an employed developer, my time for messing around with new technologies is ex
 
 Point being: when it comes to picking a shiny new technology for my weekend side projects, I'd like to be damn-certain that it will be worth my time investment, as well as fun. And with ECMAScript 6 slated to come out this summer, it seems like the obvious choice. Not only does it add a a sweet, sweet layer of syntactic sugar, cool features, and other niceties to an already extensive language, but I can rest assured that it will still be relevent in five years. 
 
+===
+Testing with babel
+
+pain in the fucking ass. don't use jest.
+
+karma is pretty good
+set up typical karma.conf.js file with karma-cli
+change file with this:
+https://busypeoples.github.io/post/testing-workflow-with-es6/
+
 ====
 classes
 http://www.2ality.com/2015/02/es6-classes-final.html
@@ -22,3 +32,5 @@ Coming from a Ruby/Python background, a lot of this is familiar; but there's som
   bracket syntax: class Stuff {constructor(){this.x = 5} ['xyz' + this.x]() { /* method name === 'xyz5' */}
 
 gotchas: class definitions are not hoisted.
+
+In many ways JavaScript is like Go. 
