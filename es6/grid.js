@@ -5,7 +5,7 @@ export class Grid {
     this.size = args.size;
     this._rows = [];
     this._cols = [];
-    this.cellType = args.cellType || Cell;
+    this.childType = args.childType || Cell;
 
     for (let r=0; r<this.rowN; r++) {
       this[r] = this._rows[r] = [];
@@ -14,7 +14,7 @@ export class Grid {
         if(!r) this._cols[c] = [];
 
         this[r][c] = this._cols[c][r] =
-          new this.cellType({
+          new this.childType({
             row: r, col: c, grid: this
           });
       }

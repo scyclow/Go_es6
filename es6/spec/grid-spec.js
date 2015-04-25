@@ -40,27 +40,27 @@ describe('Grid', function() {
       }
     });
 
-    it('should initialize with the correct cellType, if given', ()=>{
-      args.cellType = Array;
+    it('should initialize with the correct childType, if given', ()=>{
+      args.childType = Array;
       let grid = new Grid(args);
       for (let i=0; i<args.rows; i++) {
         for (let j=0; j<args.cols; j++) {
-          expect(grid[i][j]).toEqual(jasmine.any(args.cellType));
+          expect(grid[i][j]).toEqual(jasmine.any(args.childType));
         }
       }
     });
 
-    it('should pass the row index, col index, and itself to the new cellType', ()=>{
+    it('should pass the row index, col index, and itself to the new childType', ()=>{
       args = {
         rows: 1,
         cols: 1,
-        cellType: jasmine.createSpy('cellType')
+        childType: jasmine.createSpy('childType')
       };
 
       let grid = new Grid(args);
       let expectedArgs = { row: 0, col: 0, grid: grid };
 
-      expect(args.cellType).toHaveBeenCalledWith(expectedArgs);
+      expect(args.childType).toHaveBeenCalledWith(expectedArgs);
     });
   });
 
@@ -87,7 +87,7 @@ describe('Grid', function() {
 
     beforeEach(()=>{
       args = {cols: 5, rows: 5}
-      args.cellType = Object;
+      args.childType = Object;
       grid = new Grid(args);
     });
 
