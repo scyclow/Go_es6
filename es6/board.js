@@ -52,14 +52,11 @@ export class Space extends Cell {
 
     while (queue.length) {
       let stone = queue.pop();
+      let sameColor = stone.color === this.color;
 
-      if (!stone._liberties[turn] && stone.color) {
-
-        if (stone.color === this.color) {
-          liberties.extend(stone._immediateLiberties());
-          stone._liberties[turn] = stone._liberties.latest = liberties;
-        }
-
+      if (!stone._liberties[turn] && sameColor) {
+        liberties.extend(stone._immediateLiberties());
+        stone._liberties.latest = liberties;
         queue = queue.concat(stone.neighbors);
       }
     }

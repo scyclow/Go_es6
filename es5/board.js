@@ -90,14 +90,11 @@ var Space = (function (_Cell) {
 
       while (queue.length) {
         var stone = queue.pop();
+        var sameColor = stone.color === this.color;
 
-        if (!stone._liberties[turn] && stone.color) {
-
-          if (stone.color === this.color) {
-            liberties.extend(stone._immediateLiberties());
-            stone._liberties[turn] = stone._liberties.latest = liberties;
-          }
-
+        if (!stone._liberties[turn] && sameColor) {
+          liberties.extend(stone._immediateLiberties());
+          stone._liberties.latest = liberties;
           queue = queue.concat(stone.neighbors);
         }
       }
