@@ -58,7 +58,7 @@ describe('Grid', function() {
       };
 
       let grid = new Grid(args);
-      let expectedArgs = { row: 0, col: 0, grid: grid };
+      let expectedArgs = { row: 0, col: 0, grid: grid, id: 0 };
 
       expect(args.childType).toHaveBeenCalledWith(expectedArgs);
     });
@@ -173,19 +173,24 @@ describe('Cell', function() {
   });
 
   describe('neighbors', function() {
-    var grid, cell1, cell2, cell3;
+    var grid, cell1, cell2, cell3, cell4;
 
     beforeEach(()=>{
       grid = new Grid({size: 3});
       cell1 = grid[0][0];
       cell2 = grid[0][1];
       cell3 = grid[1][1];
+      cell4 = grid[1][0];
     });
 
     it('should have the correct number of neighbors', ()=>{
       expect(cell1.neighbors.length).toEqual(2);
       expect(cell2.neighbors.length).toEqual(3);
       expect(cell3.neighbors.length).toEqual(4);
+    });
+
+    it('should point to the correct neighbor', ()=>{
+      expect(cell1.neighbors).toEqual([cell4, cell2]);
     });
   });
 });

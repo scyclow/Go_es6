@@ -7,6 +7,7 @@ export class Grid {
     this._cols = [];
     this.childType = args.childType || Cell;
 
+    var id = 0;
     for (let r=0; r<this.rowN; r++) {
       this[r] = this._rows[r] = [];
 
@@ -15,8 +16,9 @@ export class Grid {
 
         this[r][c] = this._cols[c][r] =
           new this.childType({
-            row: r, col: c, grid: this
+            row: r, col: c, grid: this, id: id
           });
+        id += 1;
       }
     }
 
@@ -60,20 +62,20 @@ export class Cell {
   constructor(args={}) {
     this.row = args.row;
     this.col = args.col;
+    this.id = args.id;
     this.grid = args.grid;
   }
 
   get neighbors() {
-    return this._neighbors = 
-      this._neighbors || [
+    this._neighbors = this._neighbors || [
         [this.row+1, this.col],
         [this.row-1, this.col],
         [this.row, this.col+1],
         [this.row, this.col-1]
-      ].map(coords => {
-        let [r,c] = coords;
-        return this.grid[r] && this.grid[r][c];
-      }).filter( n => n );
+      ].map(
+        ([r, c]) => this.grid[r] && this.grid[r][c]
+      ).filter( n => n );
+    return this._neighbors;
   }
 }
 
