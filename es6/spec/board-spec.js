@@ -52,62 +52,108 @@ describe('Space', function() {
     });
   });
 
+  describe('get shape', function() {
+    describe('liberties', ()=>{
+      var board, stone1, stone2, stone3;
+
+      beforeEach(()=>{
+        // [w,_,w,_,_,_,_,_,_]
+        // [_,_,_,w,_,_,_,_,_]
+        board = new Board({size: 9});
+        stone1 = board[0][0].placeStone(color.WHITE);
+        stone2 = board[0][2].placeStone(color.WHITE);
+        stone3 = board[1][3].placeStone(color.WHITE);
+      });
+
+      it('should return the correct number of liberties for edge spaces', ()=>{
+        expect(stone1.shape.liberties.size).toBe(2);
+        expect(stone2.shape.liberties.size).toBe(3);
+        expect(stone3.shape.liberties.size).toBe(4);
+      });
+
+      it('should return the correct number of liberties of the shape', ()=>{
+        let stone4 = board[0][1].placeStone(color.WHITE);
+        let stone5 = board[1][0].placeStone(color.WHITE);
+
+        // [w,w,w,_,_,_,_,_,_]
+        // [w,_,_,w,_,_,_,_,_]
+        // [_,_,_,_,_,_,_,_,_]
+        let expectedLiberties = 4;
+        expect(stone1.shape.liberties.size).toEqual(expectedLiberties);
+        expect(stone2.shape.liberties.size).toEqual(expectedLiberties);
+        expect(stone4.shape.liberties.size).toEqual(expectedLiberties);
+        expect(stone5.shape.liberties.size).toEqual(expectedLiberties);
+      });
+
+      it('should return the correct number of liberties after a stone of the opposite color is placed', ()=>{
+        // [w,b,w,_,_,_,_,_,_]
+        // [_,_,_,w,_,_,_,_,_]
+        var stoneShit = board[0][1].placeStone(color.BLACK);
+
+        expect(stone1.shape.liberties.size).toBe(1);
+        expect(stone2.shape.liberties.size).toBe(2);
+      });
+
+      it('get liberties should be a shorthand for shape.liberties.size', ()=>{
+        expect(stone3.liberties).toBe(4);
+      });
+    });
+
+    describe('members', function() {
+      it('should return a set of all stones included in its shape', ()=>{
+        let board = new Board({size: 9});
+        let expectShapeSize = 5;
+        for (let i=0; i<expectShapeSize; i++) {
+          board[i][0].placeStone(color.WHITE);
+          board[i][1].placeStone(color.BLACK);
+        }
+
+        for (let i=0; i<expectShapeSize; i++) {
+          expect(board[i][0].shape.members instanceof Set).toBe(true);
+          expect(board[i][0].shape.members.size).toEqual(expectShapeSize);
+        }
+      });
+    });
+  });
+
   describe('killStone', ()=>{
-    var board, space;
+    var board;
 
     beforeEach(()=>{
-      board = new Board({size: 5});
-      space = board[1][1];
+      board = new Board({size: 9});
     });
 
     it('should set its color to null', ()=>{
+      let space = board[1][1];
       space.placeStone(color.BLACK);
       expect(space.color).toBe(color.BLACK);
 
       space.killStone();
       expect(space.color).toBe(null);
     });
-  });
 
-  describe('get liberties', ()=>{
-    var board, stone1, stone2, stone3;
+    it('should set the stone\'s shape to null', ()=>{
+      let space = board[1][1];
+      space.placeStone(color.BLACK);
 
-    beforeEach(()=>{
-      // [w,_,w,_,_,_,_,_,_]
-      // [_,_,_,w,_,_,_,_,_]
-      board = new Board({size: 9});
-      stone1 = board[0][0].placeStone(color.WHITE);
-      stone2 = board[0][2].placeStone(color.WHITE);
-      stone3 = board[1][3].placeStone(color.WHITE);
+      expect(space.liberties).toBe(4);
+      space.killStone();
+
+      expect(space.shape).toBe(null);
+      expect(space.liberties).toBe(null);
     });
 
-    it('should return the correct number of liberties for edge spaces', ()=>{
-      expect(stone1.liberties.size).toBe(2);
-      expect(stone2.liberties.size).toBe(3);
-      expect(stone3.liberties.size).toBe(4);
-    });
+    it('should kill an entire shape', ()=>{
+      let shapeSize = 5;
+      for (let i=0; i<shapeSize; i++) {
+        board[i][0].placeStone(color.WHITE);
+        board[i][1].placeStone(color.BLACK);
+      }
+      board[shapeSize][0].placeStone(color.BLACK);
 
-    it('should return the correct number of liberties of the shape', ()=>{
-      let stone4 = board[0][1].placeStone(color.WHITE);
-      let stone5 = board[1][0].placeStone(color.WHITE);
-
-      // [w,w,w,_,_,_,_,_,_]
-      // [w,_,_,w,_,_,_,_,_]
-      // [_,_,_,_,_,_,_,_,_]
-      let expectedLiberties = 4;
-      expect(stone1.liberties.size).toEqual(expectedLiberties);
-      expect(stone2.liberties.size).toEqual(expectedLiberties);
-      expect(stone4.liberties.size).toEqual(expectedLiberties);
-      expect(stone5.liberties.size).toEqual(expectedLiberties);
-    });
-
-    it('should return the correct number of liberties after a stone of the opposite color is placed', ()=>{
-      // [w,b,w,_,_,_,_,_,_]
-      // [_,_,_,w,_,_,_,_,_]
-      var stoneShit = board[0][1].placeStone(color.BLACK);
-
-      expect(stone1.liberties.size).toBe(1);
-      expect(stone2.liberties.size).toBe(2);
+      for (let i=0; i<shapeSize; i++) {
+        expect(board[i][0].color).toBe(null);
+      }
     });
   });
 });
@@ -150,3 +196,7 @@ describe('Set.prototype.extend', function() {
     expect(set2.size).toEqual(3);
   });
 });
+
+function log(...args) {
+  console.log(...args);
+}

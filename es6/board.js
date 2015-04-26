@@ -14,6 +14,37 @@ export class Board extends Grid {
 
     this.currentTurn = 0;
   }
+
+  printBoard() {
+    var cols = 'abcdefghjklmnopqrst'.split('');
+    var boardString = '\n   ';
+    for (let i=0; i<this.colN; i++) {
+      boardString += `${cols[i]} `
+    }
+    boardString += '\n';
+
+    var rowNum = 0;
+    for (let row of this.rows) {
+      var rowString = `${rowNum+=1} |`;
+
+      for (let col of row) {
+        if (col.color === color.WHITE) {
+          rowString += 'w|'
+
+        } else if (col.color === color.BLACK) {
+          rowString += 'b|'
+
+        } else {
+          rowString += '_|'
+        }
+      }
+
+      rowString += '\n';
+      boardString += rowString
+    }
+
+    console.log(boardString);
+  }
 }
 
 export class Space extends Cell {
@@ -22,10 +53,14 @@ export class Space extends Cell {
     this.board = args.grid;
     this.color = null;
 
-    this._liberties = {};
+    this._shape = {};
   }
 
   placeStone(color) {
+    if (this.color) {
+      throw `There is already a ${this.color.toString()} stone on this space`;
+    }
+
     this.color = color;
     this.board.currentTurn += 1;
     this.updateNeighbors(this.board.currentTurn);
@@ -34,10 +69,18 @@ export class Space extends Cell {
 
   killStone() {
     this.color = null;
+    this._updateShape(null, this.board.currentTurn);
+  }
+
+  get shape() {
+    return this._shape.latest;
   }
 
   get liberties() {
-    return this._liberties.latest
+    return (
+      this._shape.latest &&
+      this._shape.latest.liberties.size
+    ) || null;
   }
 
   updateNeighbors() {
@@ -48,18 +91,28 @@ export class Space extends Cell {
   _updateSiblings() {
     var turn = this.board.currentTurn;
     var queue = [this];
-    var liberties = new Set();
+    var shape = {
+      liberties: new Set(),
+      members: new Set()
+    };
 
     while (queue.length) {
       let stone = queue.pop();
       let sameColor = stone.color === this.color;
 
-      if (!stone._liberties[turn] && sameColor) {
-        liberties.extend(stone._immediateLiberties());
-        stone._liberties[turn] = stone._liberties.latest = liberties;
+      if (!stone._shape[turn] && sameColor) {
+        shape.liberties.extend(stone._immediateLiberties());
+        shape.members.add(stone);
+
+        stone._updateShape(shape, turn);
+
         queue = queue.concat(stone.neighbors);
       }
     }
+  }
+
+  _updateShape(shape, turn) {
+    this._shape[turn] = this._shape.latest = shape;
   }
 
   _updateEnemies() {
@@ -67,8 +120,21 @@ export class Space extends Cell {
     this.neighbors.forEach((neighbor) => {
       if (neighbor.color !== this.color) {
         neighbor._updateSiblings();
+
+        if (!neighbor.liberties) {
+          this._takePrisoner(neighbor);
+        }
       }
     });
+  }
+
+  _takePrisoner(neighbor) {
+    // TODO -- set prisoners on player, not space
+    this._prisoners = this._prisoners || 0;
+    for (let member of neighbor.shape.members) {
+      member.killStone();
+      this._prisoners += 1;
+    }
   }
 
   _immediateLiberties() {
