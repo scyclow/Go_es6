@@ -94,7 +94,7 @@ var Space = (function (_Cell) {
 
         if (!stone._liberties[turn] && sameColor) {
           liberties.extend(stone._immediateLiberties());
-          stone._liberties.latest = liberties;
+          stone._liberties[turn] = stone._liberties.latest = liberties;
           queue = queue.concat(stone.neighbors);
         }
       }
