@@ -8,7 +8,7 @@ describe('Grid', function() {
       args = {
         rows: 19,
         cols: 9
-      }
+      };
     });
 
     it('should keep track of all grids', ()=>{
@@ -27,7 +27,7 @@ describe('Grid', function() {
       let grid = new Grid(args);
       for (let i=0; i<args.rows; i++) {
         expect(grid[i]).toEqual(jasmine.any(Array));
-        expect(grid[i].length).toEqual(args.cols)
+        expect(grid[i].length).toEqual(args.cols);
       }
     });
 
@@ -68,7 +68,7 @@ describe('Grid', function() {
     var args, grid;
 
     beforeEach(()=>{
-      args = {cols: 5, rows: 5}
+      args = {cols: 5, rows: 5};
       grid = new Grid(args);
     });
 
@@ -86,7 +86,7 @@ describe('Grid', function() {
     var args, grid;
 
     beforeEach(()=>{
-      args = {cols: 5, rows: 5}
+      args = {cols: 5, rows: 5};
       args.childType = Object;
       grid = new Grid(args);
     });
@@ -124,7 +124,7 @@ describe('Grid', function() {
     it('should iterate over the rows', ()=>{
       var i = 0;
       for (let row of grid) {
-        expect(row).toEqual(grid.rows[i])
+        expect(row).toEqual(grid.rows[i]);
         i += 1; 
       }
 

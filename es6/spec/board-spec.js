@@ -1,11 +1,15 @@
 import { Board, Space, color } from '../board';
 
+function placeStone(board, coords, color) {
+  return board[coords[0]][coords[1]].placeStone(color);
+}
+
 describe('Board', function() {
   describe('constructor', () => {
     var size, board;
 
     beforeEach(()=>{
-      size = 6
+      size = 6;
       board = new Board({size});
     });
 
@@ -26,7 +30,7 @@ describe('Space', function() {
     it('should have a row, col, and board', () => {
       let row = 1;
       let col = 1;
-      let board = new Board;
+      let board = new Board();
 
       let space = new Space({row, col, grid: board});
       expect(space.row).toEqual(row);
@@ -38,17 +42,82 @@ describe('Space', function() {
   });
 
   describe('placeStone', ()=>{
-    var board, space;
-
-    beforeEach(()=>{
-      board = new Board({size: 5});
-      space = board[1][1];
-    });
 
     it('should change the space\'s color', ()=>{
+      let board = new Board({size: 5});
+      let space = board[1][1];
+
       expect(space.color).toBe(null);
       space.placeStone(color.BLACK);
       expect(space.color).toBe(color.BLACK);
+    });
+
+    describe('prevents invalid moves', function() {
+      var board;
+
+      beforeEach(()=>{
+        board = new Board({size: 9});
+      });
+
+      it('when a stone has already been played in that space', ()=>{
+        let originalColor = color.WHITE;
+        placeStone(board, [0, 0], originalColor);
+        expect(placeStone(board, [0, 0], color.WHITE)).toBe(false);
+        expect(placeStone(board, [0, 0], color.BLACK)).toBe(false);
+        expect(board[0][0].color).toBe(originalColor);
+      });
+
+      it('checks to see if move is legal', ()=>{
+        let space = board[0][0];
+        let expectedColor = color.BLACK;
+        spyOn(space, 'legalMove');
+
+        space.placeStone(expectedColor);
+        expect(space.legalMove).toHaveBeenCalledWith(expectedColor);
+      });
+    });
+
+    describe('legalMove', function() {
+      var board;
+
+      beforeEach(()=>{
+        board = new Board({size: 9});
+      });
+
+      it('when all neighbors are enemies, and none are in atari', ()=>{
+        [[0, 1], [1, 0], [1, 2], [2, 1]].forEach(
+          coord => placeStone(board, coord, color.WHITE)
+        );
+
+        expect(board[1][1].legalMove(color.BLACK)).toBe(false);
+        expect(placeStone(board, [1, 1], color.BLACK)).toBe(false);
+        expect(board[1][1].color).toBe(null);
+      });
+
+      it('when it would kill its own shape', ()=>{
+        [[1,0], [1,1], [1,2], [1,3], [0,4]].forEach(
+          coord => placeStone(board, coord, color.BLACK)
+        );
+
+        [[0,3], [0,2], [0,1]].forEach(
+          coord => placeStone(board, coord, color.WHITE)
+        );
+        // [_,w,w,w,b,_,_,_,_]
+        // [b,b,b,b,_,_,_,_,_]
+        expect(board[0][0].legalMove(color.WHITE)).toBe(false);
+        expect(placeStone(board, [0, 0], color.WHITE)).toBe(false);
+        expect(board[0][0].color).toBe(null);
+      });
+
+      it('...but not when at least one of its neighbors is in atari', ()=>{
+        [[1,0], [0,1]].forEach(coord => placeStone(board, coord, color.BLACK));
+        [[0,2], [1,1]].forEach(coord => placeStone(board, coord, color.WHITE));
+        // [_,b,w,_,_,_,_,_,_]
+        // [b,w,_,_,_,_,_,_,_]
+        expect(board[0][0].legalMove(color.WHITE)).toBe(true);
+        placeStone(board, [0, 0], color.WHITE);
+        expect(board[0][0].color).toBe(color.WHITE);
+      });
     });
   });
 
@@ -60,9 +129,9 @@ describe('Space', function() {
         // [w,_,w,_,_,_,_,_,_]
         // [_,_,_,w,_,_,_,_,_]
         board = new Board({size: 9});
-        stone1 = board[0][0].placeStone(color.WHITE);
-        stone2 = board[0][2].placeStone(color.WHITE);
-        stone3 = board[1][3].placeStone(color.WHITE);
+        stone1 = placeStone(board, [0, 0], color.WHITE);
+        stone2 = placeStone(board, [0, 2], color.WHITE);
+        stone3 = placeStone(board, [1, 3], color.WHITE);
       });
 
       it('should return the correct number of liberties for edge spaces', ()=>{
@@ -72,8 +141,8 @@ describe('Space', function() {
       });
 
       it('should return the correct number of liberties of the shape', ()=>{
-        let stone4 = board[0][1].placeStone(color.WHITE);
-        let stone5 = board[1][0].placeStone(color.WHITE);
+        let stone4 = placeStone(board, [0, 1], color.WHITE);
+        let stone5 = placeStone(board, [1, 0], color.WHITE);
 
         // [w,w,w,_,_,_,_,_,_]
         // [w,_,_,w,_,_,_,_,_]
@@ -88,7 +157,7 @@ describe('Space', function() {
       it('should return the correct number of liberties after a stone of the opposite color is placed', ()=>{
         // [w,b,w,_,_,_,_,_,_]
         // [_,_,_,w,_,_,_,_,_]
-        var stoneShit = board[0][1].placeStone(color.BLACK);
+        var stoneShit = placeStone(board, [0, 1], color.BLACK);
 
         expect(stone1.shape.liberties.size).toBe(1);
         expect(stone2.shape.liberties.size).toBe(2);
@@ -104,8 +173,8 @@ describe('Space', function() {
         let board = new Board({size: 9});
         let expectShapeSize = 5;
         for (let i=0; i<expectShapeSize; i++) {
-          board[i][0].placeStone(color.WHITE);
-          board[i][1].placeStone(color.BLACK);
+          placeStone(board, [i, 0], color.WHITE);
+          placeStone(board, [i, 1], color.BLACK);
         }
 
         for (let i=0; i<expectShapeSize; i++) {
@@ -146,10 +215,10 @@ describe('Space', function() {
     it('should kill an entire shape', ()=>{
       let shapeSize = 5;
       for (let i=0; i<shapeSize; i++) {
-        board[i][0].placeStone(color.WHITE);
-        board[i][1].placeStone(color.BLACK);
+        placeStone(board, [i, 0], color.WHITE);
+        placeStone(board, [i, 1], color.BLACK);
       }
-      board[shapeSize][0].placeStone(color.BLACK);
+      placeStone(board, [shapeSize, 0], color.BLACK);
 
       for (let i=0; i<shapeSize; i++) {
         expect(board[i][0].color).toBe(null);
