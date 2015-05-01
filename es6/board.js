@@ -13,10 +13,18 @@ export class Board extends Grid {
     super({size, childType});
 
     this.currentTurn = 0;
+
+    this.prisoners = {
+      [color.WHITE]: 0,
+      [color.BLACK]: 0
+    };
+
+    this.turns = [];
+    this.positions = new Set();
   }
 
   printBoard(invalid=null) {
-    var cols = 'ABCDEFGHJKLMNOPQRST'.split('');
+    var cols = 'ABCDEFGHJKLMNOPQRST';
     var boardString = '\n   ';
     for (let i=0; i<this.colN; i++) {
       boardString += `${cols[i]} `;
@@ -47,39 +55,67 @@ export class Board extends Grid {
     }
     console.log(boardString);
   }
-}
 
-export class Space extends Cell {
-  constructor(args={}) {
-    super(args);
-    this.board = args.grid;
-    this.color = null;
-    this.coords = {row: this.row, col: this.col};
-
-    this._shape = {};
+  compress() {
+    var output = '';
+    this.forEachCell((space)=>{
+      if (space.color === color.WHITE) {
+        output += 'w';
+      } else if (space.color === color.BLACK) {
+        output += 'b';
+      } else {
+        output += '0';
+      }
+    });
+    return output;
   }
 
-  placeStone(color) {
-    if (!this.legalMove(color)) return false;
-
-    this.color = color;
-    this.board.currentTurn += 1;
-    this.updateNeighbors(this.board.currentTurn);
-    return this;
+  logTurn() {
+    let compressed = this.compress();
+    this.turns.push(compressed);
+    this.positions.add(compressed);
   }
 
-  legalMove(color) {
+  placeStone(space, color) {
+    space = this._checkSpace(space);
+
+    if (!space || !this.legalMove(space, color)) return false;
+
+    this.currentTurn += 1;
+    space.updateColor(color);
+    space.updateNeighbors(this.currentTurn);
+    this.logTurn();
+    return space;
+  }
+
+  _checkSpace(space) {
+    if (space instanceof Array && space.length === 2) {
+      return this[space[0]][space[1]];
+    } else if (space instanceof Space) {
+      return space;
+    } else {
+      return false
+    }
+  }
+
+  legalMove(space, color) {
     if (!color) {
       console.log('There is no color here...');
       return false;
     }
     // If there is already a stone on the space.
-    if (this.color) {
-      console.log(`There is already a ${this.color.toString()} stone on space ${this.id}`);
+    if (space.color) {
+      console.log(`There is already a ${space.color.toString()} stone on space ${this.id}`);
       return false;
     }
 
-    for (let neighbor of this.neighbors) {
+    // if(this._detectKo()) {
+    //   console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
+    //   this.board.printBoard();
+    //   return false;
+    // }
+
+    for (let neighbor of space.neighbors) {
       // valid if any neighbors are empty.
       if (!neighbor.color) {
         return true;
@@ -95,11 +131,35 @@ export class Space extends Cell {
       }
     }
 
-    this.board.printBoard(this.coords);
+    // this.board.printBoard(this.coords);
     return false;
   }
+}
 
-  killStone() {
+export class Space extends Cell {
+  constructor(args={}) {
+    super(args);
+    this.board = args.grid;
+    this.color = null;
+    this.coords = {row: this.row, col: this.col};
+
+    this._shape = {};
+  }
+
+// TODO - incorporate better simulated board.
+  _detectKo(colr) {
+    let newPosition = this.board.compress().split('');
+
+    if (color === color.BLACK) {
+      newPosition[this.id] = 'b';
+    } else {
+      newPosition[this.id] = 'w';
+    }
+
+    return this.board.positions.has(newPosition.join(''));
+  }
+
+  kill() {
     this.color = null;
     this._updateShape(null, this.board.currentTurn);
   }
@@ -113,6 +173,10 @@ export class Space extends Cell {
       this._shape.latest &&
       this._shape.latest.liberties.size
     ) || null;
+  }
+
+  updateColor(color) {
+    this.color = color;
   }
 
   updateNeighbors() {
@@ -161,11 +225,9 @@ export class Space extends Cell {
   }
 
   _takePrisoner(neighbor) {
-    // TODO -- set prisoners on player, not space
-    this._prisoners = this._prisoners || 0;
-    for (let member of neighbor.shape.members) {
-      member.killStone();
-      this._prisoners += 1;
+    for (let enemy of neighbor.shape.members) {
+      enemy.kill();
+      this.board.prisoners[this.color] += 1;
     }
   }
 

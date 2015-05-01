@@ -1,5 +1,7 @@
 'use strict';
 
+var _defineProperty = function (obj, key, value) { return Object.defineProperty(obj, key, { value: value, enumerable: key == null || typeof Symbol == 'undefined' || key.constructor !== Symbol, configurable: true, writable: true }); };
+
 var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } };
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -23,6 +25,8 @@ exports.color = color;
 
 var Board = (function (_Grid) {
   function Board() {
+    var _prisoners;
+
     var args = arguments[0] === undefined ? {} : arguments[0];
 
     _classCallCheck(this, Board);
@@ -33,6 +37,11 @@ var Board = (function (_Grid) {
     _get(Object.getPrototypeOf(Board.prototype), 'constructor', this).call(this, { size: size, childType: childType });
 
     this.currentTurn = 0;
+
+    this.prisoners = (_prisoners = {}, _defineProperty(_prisoners, color.WHITE, 0), _defineProperty(_prisoners, color.BLACK, 0), _prisoners);
+
+    this.turns = [];
+    this.positions = new Set();
   }
 
   _inherits(Board, _Grid);
@@ -42,7 +51,7 @@ var Board = (function (_Grid) {
     value: function printBoard() {
       var invalid = arguments[0] === undefined ? null : arguments[0];
 
-      var cols = 'ABCDEFGHJKLMNOPQRST'.split('');
+      var cols = 'ABCDEFGHJKLMNOPQRST';
       var boardString = '\n   ';
       for (var i = 0; i < this.colN; i++) {
         boardString += '' + cols[i] + ' ';
@@ -115,58 +124,77 @@ var Board = (function (_Grid) {
       }
       console.log(boardString);
     }
-  }]);
-
-  return Board;
-})(_Grid$Cell.Grid);
-
-exports.Board = Board;
-
-var Space = (function (_Cell) {
-  function Space() {
-    var args = arguments[0] === undefined ? {} : arguments[0];
-
-    _classCallCheck(this, Space);
-
-    _get(Object.getPrototypeOf(Space.prototype), 'constructor', this).call(this, args);
-    this.board = args.grid;
-    this.color = null;
-    this.coords = { row: this.row, col: this.col };
-
-    this._shape = {};
-  }
-
-  _inherits(Space, _Cell);
-
-  _createClass(Space, [{
+  }, {
+    key: 'compress',
+    value: function compress() {
+      var output = '';
+      this.forEachCell(function (space) {
+        if (space.color === color.WHITE) {
+          output += 'w';
+        } else if (space.color === color.BLACK) {
+          output += 'b';
+        } else {
+          output += '0';
+        }
+      });
+      return output;
+    }
+  }, {
+    key: 'logTurn',
+    value: function logTurn() {
+      var compressed = this.compress();
+      this.turns.push(compressed);
+      this.positions.add(compressed);
+    }
+  }, {
     key: 'placeStone',
-    value: function placeStone(color) {
-      if (!this.legalMove(color)) {
+    value: function placeStone(space, color) {
+      space = this._checkSpace(space);
+
+      if (!space || !this.legalMove(space, color)) {
         return false;
-      }this.color = color;
-      this.board.currentTurn += 1;
-      this.updateNeighbors(this.board.currentTurn);
-      return this;
+      }this.currentTurn += 1;
+      space.updateColor(color);
+      space.updateNeighbors(this.currentTurn);
+      this.logTurn();
+      return space;
+    }
+  }, {
+    key: '_checkSpace',
+    value: function _checkSpace(space) {
+      if (space instanceof Array && space.length === 2) {
+        return this[space[0]][space[1]];
+      } else if (space instanceof Space) {
+        return space;
+      } else {
+        return false;
+      }
     }
   }, {
     key: 'legalMove',
-    value: function legalMove(color) {
+    value: function legalMove(space, color) {
       if (!color) {
         console.log('There is no color here...');
         return false;
       }
       // If there is already a stone on the space.
-      if (this.color) {
-        console.log('There is already a ' + this.color.toString() + ' stone on space ' + this.id);
+      if (space.color) {
+        console.log('There is already a ' + space.color.toString() + ' stone on space ' + this.id);
         return false;
       }
+
+      // if(this._detectKo()) {
+      //   console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
+      //   this.board.printBoard();
+      //   return false;
+      // }
 
       var _iteratorNormalCompletion3 = true;
       var _didIteratorError3 = false;
       var _iteratorError3 = undefined;
 
       try {
-        for (var _iterator3 = this.neighbors[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+        for (var _iterator3 = space.neighbors[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
           var neighbor = _step3.value;
 
           // valid if any neighbors are empty.
@@ -198,12 +226,50 @@ var Space = (function (_Cell) {
         }
       }
 
-      this.board.printBoard(this.coords);
+      // this.board.printBoard(this.coords);
       return false;
     }
+  }]);
+
+  return Board;
+})(_Grid$Cell.Grid);
+
+exports.Board = Board;
+
+var Space = (function (_Cell) {
+  function Space() {
+    var args = arguments[0] === undefined ? {} : arguments[0];
+
+    _classCallCheck(this, Space);
+
+    _get(Object.getPrototypeOf(Space.prototype), 'constructor', this).call(this, args);
+    this.board = args.grid;
+    this.color = null;
+    this.coords = { row: this.row, col: this.col };
+
+    this._shape = {};
+  }
+
+  _inherits(Space, _Cell);
+
+  _createClass(Space, [{
+    key: '_detectKo',
+
+    // TODO - incorporate better simulated board.
+    value: function _detectKo(colr) {
+      var newPosition = this.board.compress().split('');
+
+      if (color === color.BLACK) {
+        newPosition[this.id] = 'b';
+      } else {
+        newPosition[this.id] = 'w';
+      }
+
+      return this.board.positions.has(newPosition.join(''));
+    }
   }, {
-    key: 'killStone',
-    value: function killStone() {
+    key: 'kill',
+    value: function kill() {
       this.color = null;
       this._updateShape(null, this.board.currentTurn);
     }
@@ -216,6 +282,11 @@ var Space = (function (_Cell) {
     key: 'liberties',
     get: function () {
       return this._shape.latest && this._shape.latest.liberties.size || null;
+    }
+  }, {
+    key: 'updateColor',
+    value: function updateColor(color) {
+      this.color = color;
     }
   }, {
     key: 'updateNeighbors',
@@ -271,18 +342,16 @@ var Space = (function (_Cell) {
   }, {
     key: '_takePrisoner',
     value: function _takePrisoner(neighbor) {
-      // TODO -- set prisoners on player, not space
-      this._prisoners = this._prisoners || 0;
       var _iteratorNormalCompletion4 = true;
       var _didIteratorError4 = false;
       var _iteratorError4 = undefined;
 
       try {
         for (var _iterator4 = neighbor.shape.members[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-          var member = _step4.value;
+          var enemy = _step4.value;
 
-          member.killStone();
-          this._prisoners += 1;
+          enemy.kill();
+          this.board.prisoners[this.color] += 1;
         }
       } catch (err) {
         _didIteratorError4 = true;
