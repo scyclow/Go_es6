@@ -52,7 +52,6 @@ describe('Board', function() {
     });
   });
 
-// TODO, bring the place stone logic into the board, and run this automatically.
   describe('logTurn', function() {
     it('should keep an ordered array and set of the board\'s history', ()=>{
       let board = new Board({size: 3});
@@ -221,6 +220,17 @@ describe('Board', function() {
 
         expect(board.prisoners[color.BLACK]).toBe(whiteStones.length);
       });
+    });
+  });
+
+  describe('get currentTurn', function() {
+    it('should return the current turn number', ()=>{
+      let board = new Board({size: 9});
+      expect(board.currentTurn).toEqual(0);
+
+      let turns = [[0,0], [1,1], [2,2], [3,3]];
+      turns.forEach(coord => board.placeStone(coord, color.BLACK));
+      expect(board.currentTurn).toEqual(turns.length);
     });
   });
 });

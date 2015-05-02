@@ -36,8 +36,6 @@ var Board = (function (_Grid) {
 
     _get(Object.getPrototypeOf(Board.prototype), 'constructor', this).call(this, { size: size, childType: childType });
 
-    this.currentTurn = 0;
-
     this.prisoners = (_prisoners = {}, _defineProperty(_prisoners, color.WHITE, 0), _defineProperty(_prisoners, color.BLACK, 0), _prisoners);
 
     this.turns = [];
@@ -145,6 +143,8 @@ var Board = (function (_Grid) {
       var compressed = this.compress();
       this.turns.push(compressed);
       this.positions.add(compressed);
+
+      return compressed;
     }
   }, {
     key: 'placeStone',
@@ -153,11 +153,15 @@ var Board = (function (_Grid) {
 
       if (!space || !this.legalMove(space, color)) {
         return false;
-      }this.currentTurn += 1;
-      space.updateColor(color);
-      space.updateNeighbors(this.currentTurn);
+      }space.updateColor(color);
+      space.updateNeighbors();
       this.logTurn();
       return space;
+    }
+  }, {
+    key: 'currentTurn',
+    get: function () {
+      return this.turns.length;
     }
   }, {
     key: '_checkSpace',
@@ -256,7 +260,7 @@ var Space = (function (_Cell) {
     key: '_detectKo',
 
     // TODO - incorporate better simulated board.
-    value: function _detectKo(colr) {
+    value: function _detectKo(color) {
       var newPosition = this.board.compress().split('');
 
       if (color === color.BLACK) {

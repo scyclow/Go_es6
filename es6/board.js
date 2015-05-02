@@ -12,8 +12,6 @@ export class Board extends Grid {
 
     super({size, childType});
 
-    this.currentTurn = 0;
-
     this.prisoners = {
       [color.WHITE]: 0,
       [color.BLACK]: 0
@@ -74,6 +72,8 @@ export class Board extends Grid {
     let compressed = this.compress();
     this.turns.push(compressed);
     this.positions.add(compressed);
+
+    return compressed;
   }
 
   placeStone(space, color) {
@@ -81,11 +81,14 @@ export class Board extends Grid {
 
     if (!space || !this.legalMove(space, color)) return false;
 
-    this.currentTurn += 1;
     space.updateColor(color);
-    space.updateNeighbors(this.currentTurn);
+    space.updateNeighbors();
     this.logTurn();
     return space;
+  }
+
+  get currentTurn() {
+    return this.turns.length;
   }
 
   _checkSpace(space) {
@@ -147,7 +150,7 @@ export class Space extends Cell {
   }
 
 // TODO - incorporate better simulated board.
-  _detectKo(colr) {
+  _detectKo(color) {
     let newPosition = this.board.compress().split('');
 
     if (color === color.BLACK) {
