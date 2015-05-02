@@ -12,8 +12,6 @@ export class Board extends Grid {
 
     super({size, childType});
 
-    this.currentTurn = 0;
-
     this.prisoners = {
       [color.WHITE]: 0,
       [color.BLACK]: 0
@@ -56,12 +54,14 @@ export class Board extends Grid {
     console.log(boardString);
   }
 
-  compress() {
+  compress(mock=false) {
     var output = '';
     this.forEachCell((space)=>{
-      if (space.color === color.WHITE) {
+      let spaceColor = (mock ? space._mockColor : space.color) || space.color;
+
+      if (spaceColor === color.WHITE) {
         output += 'w';
-      } else if (space.color === color.BLACK) {
+      } else if (spaceColor === color.BLACK) {
         output += 'b';
       } else {
         output += '0';
@@ -74,18 +74,23 @@ export class Board extends Grid {
     let compressed = this.compress();
     this.turns.push(compressed);
     this.positions.add(compressed);
+
+    return compressed;
   }
 
-  placeStone(space, color) {
+  placeStone(space, color, mock=false) {
     space = this._checkSpace(space);
 
-    if (!space || !this.legalMove(space, color)) return false;
+    if (!space || !this.legalMove(space, color, mock)) return false;
 
-    this.currentTurn += 1;
     space.updateColor(color);
-    space.updateNeighbors(this.currentTurn);
+    space.updateNeighbors();
     this.logTurn();
     return space;
+  }
+
+  get currentTurn() {
+    return this.turns.length;
   }
 
   _checkSpace(space) {
@@ -98,7 +103,7 @@ export class Board extends Grid {
     }
   }
 
-  legalMove(space, color) {
+  legalMove(space, color, mock) {
     if (!color) {
       console.log('There is no color here...');
       return false;
@@ -109,11 +114,11 @@ export class Board extends Grid {
       return false;
     }
 
-    // if(this._detectKo()) {
-    //   console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
-    //   this.board.printBoard();
-    //   return false;
-    // }
+    if(!mock && this._detectKo(space, color)) {
+      console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
+      // this.printBoard(); 
+      return false;
+    }
 
     for (let neighbor of space.neighbors) {
       // valid if any neighbors are empty.
@@ -134,6 +139,15 @@ export class Board extends Grid {
     // this.board.printBoard(this.coords);
     return false;
   }
+
+// TODO - incorporate better simulated board.
+  _detectKo(space, color) {
+    let mock = true;
+    this.placeStone(space, color, mock)
+    let newPosition = this.compress(mock)
+
+    return this.positions.has(newPosition);
+  }
 }
 
 export class Space extends Cell {
@@ -146,22 +160,9 @@ export class Space extends Cell {
     this._shape = {};
   }
 
-// TODO - incorporate better simulated board.
-  _detectKo(colr) {
-    let newPosition = this.board.compress().split('');
-
-    if (color === color.BLACK) {
-      newPosition[this.id] = 'b';
-    } else {
-      newPosition[this.id] = 'w';
-    }
-
-    return this.board.positions.has(newPosition.join(''));
-  }
-
-  kill() {
+  kill(mock=false) {
     this.color = null;
-    this._updateShape(null, this.board.currentTurn);
+    this._updateShape(null, this.board.currentTurn, mock);
   }
 
   get shape() {
@@ -175,16 +176,27 @@ export class Space extends Cell {
     ) || null;
   }
 
-  updateColor(color) {
-    this.color = color;
+  get _mockLiberties() {
+    return (
+      this._shape.mock.latest &&
+      this._shape.mock.latest.liberties.size
+    ) || null;
   }
 
-  updateNeighbors() {
-    this._updateSiblings();
-    this._updateEnemies();
+  updateColor(color, mock) {
+    if (!mock) {
+      this.color = color;
+    } else {
+      this._mockColor = color
+    }
   }
 
-  _updateSiblings() {
+  updateNeighbors(mock=false) {
+    this._updateSiblings(mock);
+    this._updateEnemies(mock);
+  }
+
+  _updateSiblings(mock=false) {
     var turn = this.board.currentTurn;
     var queue = [this];
     var shape = {
@@ -194,40 +206,48 @@ export class Space extends Cell {
 
     while (queue.length) {
       let stone = queue.pop();
-      let sameColor = stone.color === this.color;
+      let sameColor = mock ? 
+        stone.color === this._mockColor :
+        stone.color === this.color;
 
       if (!stone._shape[turn] && sameColor) {
         shape.liberties.extend(stone._immediateLiberties());
         shape.members.add(stone);
 
-        stone._updateShape(shape, turn);
+        stone._updateShape(shape, turn, mock);
 
         queue = queue.concat(stone.neighbors);
       }
     }
   }
 
-  _updateShape(shape, turn) {
-    this._shape[turn] = this._shape.latest = shape;
+  _updateShape(shape, turn, mock=false) {
+    if (mock) {
+      this._shape.mock[turn] = this._shape.mock.latest = shape;
+    } else {
+      this._shape[turn] = this._shape.latest = shape;
+    }
   }
 
-  _updateEnemies() {
+  _updateEnemies(mock=false) {
     var turn = this.board.currentTurn;
     this.neighbors.forEach((neighbor) => {
       if (neighbor.color !== this.color) {
-        neighbor._updateSiblings();
+        neighbor._updateSiblings(mock);
 
-        if (!neighbor.liberties) {
-          this._takePrisoner(neighbor);
+        if ((!mock && !neighbor.liberties) ||
+            ( mock && !neighbor._mockLiberties)
+        ) {
+          this._takePrisoner(neighbor, mock);
         }
       }
     });
   }
 
-  _takePrisoner(neighbor) {
+  _takePrisoner(neighbor, mock=false) {
     for (let enemy of neighbor.shape.members) {
-      enemy.kill();
-      this.board.prisoners[this.color] += 1;
+      enemy.kill(mock);
+      if (!mock) { this.board.prisoners[this.color] += 1; }
     }
   }
 

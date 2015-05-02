@@ -36,8 +36,6 @@ var Board = (function (_Grid) {
 
     _get(Object.getPrototypeOf(Board.prototype), 'constructor', this).call(this, { size: size, childType: childType });
 
-    this.currentTurn = 0;
-
     this.prisoners = (_prisoners = {}, _defineProperty(_prisoners, color.WHITE, 0), _defineProperty(_prisoners, color.BLACK, 0), _prisoners);
 
     this.turns = [];
@@ -127,11 +125,15 @@ var Board = (function (_Grid) {
   }, {
     key: 'compress',
     value: function compress() {
+      var mock = arguments[0] === undefined ? false : arguments[0];
+
       var output = '';
       this.forEachCell(function (space) {
-        if (space.color === color.WHITE) {
+        var spaceColor = (mock ? space._mockColor : space.color) || space.color;
+
+        if (spaceColor === color.WHITE) {
           output += 'w';
-        } else if (space.color === color.BLACK) {
+        } else if (spaceColor === color.BLACK) {
           output += 'b';
         } else {
           output += '0';
@@ -145,19 +147,27 @@ var Board = (function (_Grid) {
       var compressed = this.compress();
       this.turns.push(compressed);
       this.positions.add(compressed);
+
+      return compressed;
     }
   }, {
     key: 'placeStone',
     value: function placeStone(space, color) {
+      var mock = arguments[2] === undefined ? false : arguments[2];
+
       space = this._checkSpace(space);
 
-      if (!space || !this.legalMove(space, color)) {
+      if (!space || !this.legalMove(space, color, mock)) {
         return false;
-      }this.currentTurn += 1;
-      space.updateColor(color);
-      space.updateNeighbors(this.currentTurn);
+      }space.updateColor(color);
+      space.updateNeighbors();
       this.logTurn();
       return space;
+    }
+  }, {
+    key: 'currentTurn',
+    get: function () {
+      return this.turns.length;
     }
   }, {
     key: '_checkSpace',
@@ -172,7 +182,7 @@ var Board = (function (_Grid) {
     }
   }, {
     key: 'legalMove',
-    value: function legalMove(space, color) {
+    value: function legalMove(space, color, mock) {
       if (!color) {
         console.log('There is no color here...');
         return false;
@@ -183,11 +193,11 @@ var Board = (function (_Grid) {
         return false;
       }
 
-      // if(this._detectKo()) {
-      //   console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
-      //   this.board.printBoard();
-      //   return false;
-      // }
+      if (!mock && this._detectKo(space, color)) {
+        console.log('You can\'t play at ' + this.row + ', ' + this.col + ' because of ko');
+        // this.printBoard();
+        return false;
+      }
 
       var _iteratorNormalCompletion3 = true;
       var _didIteratorError3 = false;
@@ -229,6 +239,17 @@ var Board = (function (_Grid) {
       // this.board.printBoard(this.coords);
       return false;
     }
+  }, {
+    key: '_detectKo',
+
+    // TODO - incorporate better simulated board.
+    value: function _detectKo(space, color) {
+      var mock = true;
+      this.placeStone(space, color, mock);
+      var newPosition = this.compress(mock);
+
+      return this.positions.has(newPosition);
+    }
   }]);
 
   return Board;
@@ -253,25 +274,12 @@ var Space = (function (_Cell) {
   _inherits(Space, _Cell);
 
   _createClass(Space, [{
-    key: '_detectKo',
-
-    // TODO - incorporate better simulated board.
-    value: function _detectKo(colr) {
-      var newPosition = this.board.compress().split('');
-
-      if (color === color.BLACK) {
-        newPosition[this.id] = 'b';
-      } else {
-        newPosition[this.id] = 'w';
-      }
-
-      return this.board.positions.has(newPosition.join(''));
-    }
-  }, {
     key: 'kill',
     value: function kill() {
+      var mock = arguments[0] === undefined ? false : arguments[0];
+
       this.color = null;
-      this._updateShape(null, this.board.currentTurn);
+      this._updateShape(null, this.board.currentTurn, mock);
     }
   }, {
     key: 'shape',
@@ -284,19 +292,32 @@ var Space = (function (_Cell) {
       return this._shape.latest && this._shape.latest.liberties.size || null;
     }
   }, {
+    key: '_mockLiberties',
+    get: function () {
+      return this._shape.mock.latest && this._shape.mock.latest.liberties.size || null;
+    }
+  }, {
     key: 'updateColor',
-    value: function updateColor(color) {
-      this.color = color;
+    value: function updateColor(color, mock) {
+      if (!mock) {
+        this.color = color;
+      } else {
+        this._mockColor = color;
+      }
     }
   }, {
     key: 'updateNeighbors',
     value: function updateNeighbors() {
-      this._updateSiblings();
-      this._updateEnemies();
+      var mock = arguments[0] === undefined ? false : arguments[0];
+
+      this._updateSiblings(mock);
+      this._updateEnemies(mock);
     }
   }, {
     key: '_updateSiblings',
     value: function _updateSiblings() {
+      var mock = arguments[0] === undefined ? false : arguments[0];
+
       var turn = this.board.currentTurn;
       var queue = [this];
       var shape = {
@@ -306,13 +327,13 @@ var Space = (function (_Cell) {
 
       while (queue.length) {
         var stone = queue.pop();
-        var sameColor = stone.color === this.color;
+        var sameColor = mock ? stone.color === this._mockColor : stone.color === this.color;
 
         if (!stone._shape[turn] && sameColor) {
           shape.liberties.extend(stone._immediateLiberties());
           shape.members.add(stone);
 
-          stone._updateShape(shape, turn);
+          stone._updateShape(shape, turn, mock);
 
           queue = queue.concat(stone.neighbors);
         }
@@ -321,20 +342,28 @@ var Space = (function (_Cell) {
   }, {
     key: '_updateShape',
     value: function _updateShape(shape, turn) {
-      this._shape[turn] = this._shape.latest = shape;
+      var mock = arguments[2] === undefined ? false : arguments[2];
+
+      if (mock) {
+        this._shape.mock[turn] = this._shape.mock.latest = shape;
+      } else {
+        this._shape[turn] = this._shape.latest = shape;
+      }
     }
   }, {
     key: '_updateEnemies',
     value: function _updateEnemies() {
       var _this = this;
 
+      var mock = arguments[0] === undefined ? false : arguments[0];
+
       var turn = this.board.currentTurn;
       this.neighbors.forEach(function (neighbor) {
         if (neighbor.color !== _this.color) {
-          neighbor._updateSiblings();
+          neighbor._updateSiblings(mock);
 
-          if (!neighbor.liberties) {
-            _this._takePrisoner(neighbor);
+          if (!mock && !neighbor.liberties || mock && !neighbor._mockLiberties) {
+            _this._takePrisoner(neighbor, mock);
           }
         }
       });
@@ -342,6 +371,7 @@ var Space = (function (_Cell) {
   }, {
     key: '_takePrisoner',
     value: function _takePrisoner(neighbor) {
+      var mock = arguments[1] === undefined ? false : arguments[1];
       var _iteratorNormalCompletion4 = true;
       var _didIteratorError4 = false;
       var _iteratorError4 = undefined;
@@ -350,8 +380,10 @@ var Space = (function (_Cell) {
         for (var _iterator4 = neighbor.shape.members[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
           var enemy = _step4.value;
 
-          enemy.kill();
-          this.board.prisoners[this.color] += 1;
+          enemy.kill(mock);
+          if (!mock) {
+            this.board.prisoners[this.color] += 1;
+          }
         }
       } catch (err) {
         _didIteratorError4 = true;
