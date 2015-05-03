@@ -12,13 +12,22 @@ export class Board extends Grid {
 
     super({size, childType});
 
+
+    this.turns = [];
+    this.positions = new Set();
+
     this.prisoners = {
       [color.WHITE]: 0,
       [color.BLACK]: 0
     };
 
-    this.turns = [];
-    this.positions = new Set();
+    if (args.shadow) {
+      this.shadow = true;
+
+    } else {
+      args.shadow = true;
+      this.shadowBoard = new Board(args);
+    }
   }
 
   printBoard(invalid=null) {
@@ -68,7 +77,36 @@ export class Board extends Grid {
     return output;
   }
 
+  decompress(hash) {
+    if (!this.shadow) {
+      console.log('Can only decompress for shadow board.');
+      return;
+    }
+    if (hash.length !== this.size * this.size) {
+      console.log('Hash is the incorrect length.');
+      return;
+    }
+
+    this.forEachCell((space)=>{
+      let i = space.id;
+      if (hash[i] === 'w') {
+        space.color = color.WHITE;
+      } else if (hash[i] === 'b') {
+        space.color = color.BLACK;
+      } else if (hash[i] === '0') {
+        space.color = null;
+      } else {
+        console.log(`Unrecognized symbol at [${i}]`);
+        this.forEachCell(c => c.color = null);
+        return;
+      }
+      space.clearShape();
+    });
+  }
+
   logTurn() {
+    if (this.shadow) return;
+
     let compressed = this.compress();
     this.turns.push(compressed);
     this.positions.add(compressed);
@@ -84,11 +122,16 @@ export class Board extends Grid {
     space.updateColor(color);
     space.updateNeighbors();
     this.logTurn();
+
     return space;
   }
 
   get currentTurn() {
     return this.turns.length;
+  }
+
+  addPrisoner(color) {
+    this.prisoners[color] += 1;
   }
 
   _checkSpace(space) {
@@ -102,6 +145,8 @@ export class Board extends Grid {
   }
 
   legalMove(space, color) {
+    if (this.shadow) return true;
+
     if (!color) {
       console.log('There is no color here...');
       return false;
@@ -112,11 +157,10 @@ export class Board extends Grid {
       return false;
     }
 
-    // if(this._detectKo()) {
-    //   console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
-    //   this.board.printBoard();
-    //   return false;
-    // }
+    if(this._detectKo(space, color)) {
+      console.log(`You can\'t play at ${space.row}, ${space.col} because of ko`);
+      return false;
+    }
 
     for (let neighbor of space.neighbors) {
       // valid if any neighbors are empty.
@@ -128,14 +172,27 @@ export class Board extends Grid {
       if (sameColor && neighbor.liberties > 1) {
         return true;
       }
+
       // valid if at least one neighboring enemy is in atari.
       if (!sameColor && neighbor.liberties <= 1) {
         return true;
       }
     }
 
-    // this.board.printBoard(this.coords);
     return false;
+  }
+
+  _detectKo(space, color) {
+    if (this.shadow) { return; }
+
+    let shadow = this.shadowBoard;
+    let currentBoard = this.compress();
+
+    shadow.decompress(currentBoard);
+    shadow.placeStone([space.row, space.col], color);
+
+    let proposedBoard = shadow.compress();
+    return this.positions.has(proposedBoard);
   }
 }
 
@@ -149,22 +206,13 @@ export class Space extends Cell {
     this._shape = {};
   }
 
-// TODO - incorporate better simulated board.
-  _detectKo(color) {
-    let newPosition = this.board.compress().split('');
-
-    if (color === color.BLACK) {
-      newPosition[this.id] = 'b';
-    } else {
-      newPosition[this.id] = 'w';
-    }
-
-    return this.board.positions.has(newPosition.join(''));
-  }
-
   kill() {
     this.color = null;
     this._updateShape(null, this.board.currentTurn);
+  }
+
+  clearShape() {
+    this._shape = {};
   }
 
   get shape() {
@@ -198,7 +246,6 @@ export class Space extends Cell {
     while (queue.length) {
       let stone = queue.pop();
       let sameColor = stone.color === this.color;
-
       if (!stone._shape[turn] && sameColor) {
         shape.liberties.extend(stone._immediateLiberties());
         shape.members.add(stone);
@@ -208,6 +255,7 @@ export class Space extends Cell {
         queue = queue.concat(stone.neighbors);
       }
     }
+
   }
 
   _updateShape(shape, turn) {
@@ -230,7 +278,7 @@ export class Space extends Cell {
   _takePrisoner(neighbor) {
     for (let enemy of neighbor.shape.members) {
       enemy.kill();
-      this.board.prisoners[this.color] += 1;
+      this.board.addPrisoner(this.color);
     }
   }
 

@@ -36,10 +36,17 @@ var Board = (function (_Grid) {
 
     _get(Object.getPrototypeOf(Board.prototype), 'constructor', this).call(this, { size: size, childType: childType });
 
-    this.prisoners = (_prisoners = {}, _defineProperty(_prisoners, color.WHITE, 0), _defineProperty(_prisoners, color.BLACK, 0), _prisoners);
-
     this.turns = [];
     this.positions = new Set();
+
+    this.prisoners = (_prisoners = {}, _defineProperty(_prisoners, color.WHITE, 0), _defineProperty(_prisoners, color.BLACK, 0), _prisoners);
+
+    if (args.shadow) {
+      this.shadow = true;
+    } else {
+      args.shadow = true;
+      this.shadowBoard = new Board(args);
+    }
   }
 
   _inherits(Board, _Grid);
@@ -138,9 +145,43 @@ var Board = (function (_Grid) {
       return output;
     }
   }, {
+    key: 'decompress',
+    value: function decompress(hash) {
+      var _this = this;
+
+      if (!this.shadow) {
+        console.log('Can only decompress for shadow board.');
+        return;
+      }
+      if (hash.length !== this.size * this.size) {
+        console.log('Hash is the incorrect length.');
+        return;
+      }
+
+      this.forEachCell(function (space) {
+        var i = space.id;
+        if (hash[i] === 'w') {
+          space.color = color.WHITE;
+        } else if (hash[i] === 'b') {
+          space.color = color.BLACK;
+        } else if (hash[i] === '0') {
+          space.color = null;
+        } else {
+          console.log('Unrecognized symbol at [' + i + ']');
+          _this.forEachCell(function (c) {
+            return c.color = null;
+          });
+          return;
+        }
+        space.clearShape();
+      });
+    }
+  }, {
     key: 'logTurn',
     value: function logTurn() {
-      var compressed = this.compress();
+      if (this.shadow) {
+        return;
+      }var compressed = this.compress();
       this.turns.push(compressed);
       this.positions.add(compressed);
 
@@ -156,12 +197,18 @@ var Board = (function (_Grid) {
       }space.updateColor(color);
       space.updateNeighbors();
       this.logTurn();
+
       return space;
     }
   }, {
     key: 'currentTurn',
     get: function () {
       return this.turns.length;
+    }
+  }, {
+    key: 'addPrisoner',
+    value: function addPrisoner(color) {
+      this.prisoners[color] += 1;
     }
   }, {
     key: '_checkSpace',
@@ -177,7 +224,9 @@ var Board = (function (_Grid) {
   }, {
     key: 'legalMove',
     value: function legalMove(space, color) {
-      if (!color) {
+      if (this.shadow) {
+        return true;
+      }if (!color) {
         console.log('There is no color here...');
         return false;
       }
@@ -187,11 +236,10 @@ var Board = (function (_Grid) {
         return false;
       }
 
-      // if(this._detectKo()) {
-      //   console.log(`You can\'t play at ${this.row}, ${this.col} because of ko`);
-      //   this.board.printBoard();
-      //   return false;
-      // }
+      if (this._detectKo(space, color)) {
+        console.log('You can\'t play at ' + space.row + ', ' + space.col + ' because of ko');
+        return false;
+      }
 
       var _iteratorNormalCompletion3 = true;
       var _didIteratorError3 = false;
@@ -210,6 +258,7 @@ var Board = (function (_Grid) {
           if (sameColor && neighbor.liberties > 1) {
             return true;
           }
+
           // valid if at least one neighboring enemy is in atari.
           if (!sameColor && neighbor.liberties <= 1) {
             return true;
@@ -230,8 +279,23 @@ var Board = (function (_Grid) {
         }
       }
 
-      // this.board.printBoard(this.coords);
       return false;
+    }
+  }, {
+    key: '_detectKo',
+    value: function _detectKo(space, color) {
+      if (this.shadow) {
+        return;
+      }
+
+      var shadow = this.shadowBoard;
+      var currentBoard = this.compress();
+
+      shadow.decompress(currentBoard);
+      shadow.placeStone([space.row, space.col], color);
+
+      var proposedBoard = shadow.compress();
+      return this.positions.has(proposedBoard);
     }
   }]);
 
@@ -257,25 +321,15 @@ var Space = (function (_Cell) {
   _inherits(Space, _Cell);
 
   _createClass(Space, [{
-    key: '_detectKo',
-
-    // TODO - incorporate better simulated board.
-    value: function _detectKo(color) {
-      var newPosition = this.board.compress().split('');
-
-      if (color === color.BLACK) {
-        newPosition[this.id] = 'b';
-      } else {
-        newPosition[this.id] = 'w';
-      }
-
-      return this.board.positions.has(newPosition.join(''));
-    }
-  }, {
     key: 'kill',
     value: function kill() {
       this.color = null;
       this._updateShape(null, this.board.currentTurn);
+    }
+  }, {
+    key: 'clearShape',
+    value: function clearShape() {
+      this._shape = {};
     }
   }, {
     key: 'shape',
@@ -311,7 +365,6 @@ var Space = (function (_Cell) {
       while (queue.length) {
         var stone = queue.pop();
         var sameColor = stone.color === this.color;
-
         if (!stone._shape[turn] && sameColor) {
           shape.liberties.extend(stone._immediateLiberties());
           shape.members.add(stone);
@@ -330,15 +383,15 @@ var Space = (function (_Cell) {
   }, {
     key: '_updateEnemies',
     value: function _updateEnemies() {
-      var _this = this;
+      var _this2 = this;
 
       var turn = this.board.currentTurn;
       this.neighbors.forEach(function (neighbor) {
-        if (neighbor.color !== _this.color) {
+        if (neighbor.color !== _this2.color) {
           neighbor._updateSiblings();
 
           if (!neighbor.liberties) {
-            _this._takePrisoner(neighbor);
+            _this2._takePrisoner(neighbor);
           }
         }
       });
@@ -355,7 +408,7 @@ var Space = (function (_Cell) {
           var enemy = _step4.value;
 
           enemy.kill();
-          this.board.prisoners[this.color] += 1;
+          this.board.addPrisoner(this.color);
         }
       } catch (err) {
         _didIteratorError4 = true;
