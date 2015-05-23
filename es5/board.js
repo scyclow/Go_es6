@@ -25,7 +25,7 @@ exports.color = color;
 
 var Board = (function (_Grid) {
   function Board() {
-    var _prisoners;
+    var _ref;
 
     var args = arguments[0] === undefined ? {} : arguments[0];
 
@@ -39,7 +39,8 @@ var Board = (function (_Grid) {
     this.turns = [];
     this.positions = new Set();
 
-    this.prisoners = (_prisoners = {}, _defineProperty(_prisoners, color.WHITE, 0), _defineProperty(_prisoners, color.BLACK, 0), _prisoners);
+    this.game = args.game || {};
+    this.prisoners = this.game.prisoners || (_ref = {}, _defineProperty(_ref, color.WHITE, 0), _defineProperty(_ref, color.BLACK, 0), _ref);
 
     if (args.shadow) {
       this.shadow = true;
@@ -56,7 +57,7 @@ var Board = (function (_Grid) {
     value: function printBoard() {
       var invalid = arguments[0] === undefined ? null : arguments[0];
 
-      var cols = 'ABCDEFGHJKLMNOPQRST';
+      var cols = 'ABCDEFGHJKLMNOPQRSTUVWXYZ';
       var boardString = '\n   ';
       for (var i = 0; i < this.colN; i++) {
         boardString += '' + cols[i] + ' ';
@@ -173,7 +174,6 @@ var Board = (function (_Grid) {
           });
           return;
         }
-        space.clearShape();
       });
     }
   }, {
@@ -324,22 +324,18 @@ var Space = (function (_Cell) {
     key: 'kill',
     value: function kill() {
       this.color = null;
-      this._updateShape(null, this.board.currentTurn);
-    }
-  }, {
-    key: 'clearShape',
-    value: function clearShape() {
       this._shape = {};
     }
   }, {
     key: 'shape',
     get: function () {
-      return this._shape.latest;
+      return this._shape;
     }
   }, {
     key: 'liberties',
     get: function () {
-      return this._shape.latest && this._shape.latest.liberties.size || null;
+      var shape = this._shape;
+      return shape.liberties && shape.liberties.size || 0;
     }
   }, {
     key: 'updateColor',
@@ -355,8 +351,8 @@ var Space = (function (_Cell) {
   }, {
     key: '_updateSiblings',
     value: function _updateSiblings() {
-      var turn = this.board.currentTurn;
       var queue = [this];
+      var visited = new Set();
       var shape = {
         liberties: new Set(),
         members: new Set()
@@ -365,27 +361,27 @@ var Space = (function (_Cell) {
       while (queue.length) {
         var stone = queue.pop();
         var sameColor = stone.color === this.color;
-        if (!stone._shape[turn] && sameColor) {
+
+        if (!visited.has(stone.id) && sameColor) {
           shape.liberties.extend(stone._immediateLiberties());
           shape.members.add(stone);
+          stone._updateShape(shape);
 
-          stone._updateShape(shape, turn);
-
+          visited.add(stone.id);
           queue = queue.concat(stone.neighbors);
         }
       }
     }
   }, {
     key: '_updateShape',
-    value: function _updateShape(shape, turn) {
-      this._shape[turn] = this._shape.latest = shape;
+    value: function _updateShape(shape) {
+      this._shape = shape;
     }
   }, {
     key: '_updateEnemies',
     value: function _updateEnemies() {
       var _this2 = this;
 
-      var turn = this.board.currentTurn;
       this.neighbors.forEach(function (neighbor) {
         if (neighbor.color !== _this2.color) {
           neighbor._updateSiblings();

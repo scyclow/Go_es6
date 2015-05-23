@@ -12,14 +12,12 @@ export class Board extends Grid {
 
     super({size, childType});
 
-
     this.turns = [];
     this.positions = new Set();
 
-    this.prisoners = {
-      [color.WHITE]: 0,
-      [color.BLACK]: 0
-    };
+    this.game = args.game || {};
+    this.prisoners = this.game.prisoners || 
+      { [color.WHITE]: 0, [color.BLACK]: 0 };
 
     if (args.shadow) {
       this.shadow = true;
@@ -31,7 +29,7 @@ export class Board extends Grid {
   }
 
   printBoard(invalid=null) {
-    var cols = 'ABCDEFGHJKLMNOPQRST';
+    var cols = 'ABCDEFGHJKLMNOPQRSTUVWXYZ';
     var boardString = '\n   ';
     for (let i=0; i<this.colN; i++) {
       boardString += `${cols[i]} `;
@@ -100,7 +98,6 @@ export class Board extends Grid {
         this.forEachCell(c => c.color = null);
         return;
       }
-      space.clearShape();
     });
   }
 
@@ -208,22 +205,18 @@ export class Space extends Cell {
 
   kill() {
     this.color = null;
-    this._updateShape(null, this.board.currentTurn);
-  }
-
-  clearShape() {
     this._shape = {};
   }
 
   get shape() {
-    return this._shape.latest;
+    return this._shape;
   }
 
   get liberties() {
+    let shape = this._shape;
     return (
-      this._shape.latest &&
-      this._shape.latest.liberties.size
-    ) || null;
+      shape.liberties && shape.liberties.size
+    ) || 0;
   }
 
   updateColor(color) {
@@ -236,34 +229,34 @@ export class Space extends Cell {
   }
 
   _updateSiblings() {
-    var turn = this.board.currentTurn;
     var queue = [this];
+    var visited = new Set();
     var shape = {
       liberties: new Set(),
       members: new Set()
     };
 
+
     while (queue.length) {
       let stone = queue.pop();
       let sameColor = stone.color === this.color;
-      if (!stone._shape[turn] && sameColor) {
+
+      if (!visited.has(stone.id) && sameColor) {
         shape.liberties.extend(stone._immediateLiberties());
         shape.members.add(stone);
+        stone._updateShape(shape);
 
-        stone._updateShape(shape, turn);
-
+        visited.add(stone.id);
         queue = queue.concat(stone.neighbors);
       }
     }
-
   }
 
-  _updateShape(shape, turn) {
-    this._shape[turn] = this._shape.latest = shape;
+  _updateShape(shape) {
+    this._shape = shape;
   }
 
   _updateEnemies() {
-    var turn = this.board.currentTurn;
     this.neighbors.forEach((neighbor) => {
       if (neighbor.color !== this.color) {
         neighbor._updateSiblings();

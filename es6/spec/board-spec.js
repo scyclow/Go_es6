@@ -508,15 +508,15 @@ describe('Space', function() {
       expect(space.color).toBe(null);
     });
 
-    it('should set the stone\'s shape to null', ()=>{
+    it('should clear the stone\'s shape', ()=>{
       let space = board[1][1];
       board.placeStone(space, color.BLACK);
 
       expect(space.liberties).toBe(4);
       space.kill();
 
-      expect(space.shape).toBe(null);
-      expect(space.liberties).toBe(null);
+      expect(space.shape).toEqual({});
+      expect(space.liberties).toBe(0);
     });
 
     it('should kill an entire shape', ()=>{
